@@ -37,8 +37,8 @@ class AttendanceController {
     @PostMapping(value = "/attendance/checkin", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<String> create(@RequestBody CheckInCreationDto checkIn, @RequestHeader Map<String, String> headers) {
         Map<String, String> map = new HashMap<>();
-        map.put("studentBarcode", "barcode");
-        map.put("classSessionId", "1");
+        map.put("studentBarcode", checkIn.getStudentBarcode());
+        map.put("classSessionId", checkIn.getClassSessionId().toString());
 
         return WebClient.create(getServerUrl()).post().uri("/api/v1/record/checkin").headers(httpHeaders -> {
             httpHeaders.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
