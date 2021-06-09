@@ -1,6 +1,7 @@
 package com.cs544.team5.controller;
 
-import com.cs544.team5.domain.CheckIn;
+import com.cs544.team5.domain.CheckInCreationDto;
+import com.cs544.team5.domain.CourseReadDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
@@ -12,7 +13,9 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 class AttendanceController {
@@ -29,37 +32,43 @@ class AttendanceController {
     @RequestMapping("/service-instances/{applicationName}")
     public List<ServiceInstance> serviceInstancesByApplicationName(
             @PathVariable String applicationName) {
-        WebClient.UriSpec<WebClient.RequestBodySpec> uriSpec = webClientBuilder.build().post();
-        WebClient.RequestBodySpec bodySpec = uriSpec.uri("/api/v1/course-offering/");
-        WebClient.RequestHeadersSpec<?> headersSpec = bodySpec.body(
-                Mono.just(new CheckIn("barcode")), CheckIn.class);
 
-        WebClient.ResponseSpec responseSpec = headersSpec.header(
-                HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .accept(MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML)
-                .acceptCharset(StandardCharsets.UTF_8)
-                .ifNoneMatch("*")
-                .ifModifiedSince(ZonedDateTime.now())
-                .retrieve();
-
-        Mono<String> responseObj = headersSpec.exchangeToMono(response -> {
-            if (response.statusCode()
-                    .equals(HttpStatus.OK)) {
-                return response.bodyToMono(String.class);
-            } else if (response.statusCode()
-                    .is4xxClientError()) {
-                return Mono.just("Error response");
-            } else {
-                return response.createException()
-                        .flatMap(Mono::error);
-            }
-        });
         return this.discoveryClient.getInstances(applicationName);
     }
 
 
-    @PostMapping("/attendance/")
-    public ResponseEntity<String> checkIn(@RequestBody CheckIn checkIn){
-        return ResponseEntity.ok("Checkin Successful!");
+    @PostMapping("/attendance/checkin")
+    public ResponseEntity<String> checkIn(@RequestBody CheckInCreationDto checkIn){
+
+        try{
+            Map<String, String> map = new HashMap<>();
+            map.put("studentBarcode", "barcode");
+            map.put("classSessionId", "1");
+
+            ResponseEntity<String> response= restTemplate.postForEntity("http://team5-server/record/checkin", map, String.class);
+            // check response
+            if (response.getStatusCode() == HttpStatus.OK) {
+                System.out.println("Checkin Successful");
+            } else {
+                System.out.println("Checkin Failed");
+            }
+            return response;
+
+        } catch (Exception ex){
+            ex.printStackTrace();
+            return ResponseEntity.notFound().build();
+        }
+
+    }
+    @GetMapping("/test/course")
+    public ResponseEntity<CourseReadDto> findCourse(){
+        try{
+            CourseReadDto response = restTemplate.getForObject("http://team5-server/courses/1", CourseReadDto.class);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception ex){
+            ex.printStackTrace();
+            return ResponseEntity.notFound().build();
+        }
     }
 }
