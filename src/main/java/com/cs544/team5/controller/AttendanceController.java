@@ -3,13 +3,17 @@ package com.cs544.team5.controller;
 import com.cs544.team5.domain.CheckInCreationDto;
 import com.cs544.team5.domain.CourseReadDto;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +30,28 @@ class AttendanceController {
     @Autowired
     private WebClient.Builder webClientBuilder;
 
+
+    @Value("${api.server.name}")
+    private String serverName;
+
+    @PostMapping(value = "/attendance/checkin", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<String> create(@RequestBody CheckInCreationDto checkIn, @RequestHeader Map<String, String> headers) {
+        Map<String, String> map = new HashMap<>();
+        map.put("studentBarcode", "barcode");
+        map.put("classSessionId", "1");
+
+        return WebClient.create(getServerUrl()).post().uri("/api/v1/record/checkin").headers(httpHeaders -> {
+            httpHeaders.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            httpHeaders.add(HttpHeaders.AUTHORIZATION, headers.get("authorization"));
+        }).body(Mono.just(map), Map.class).retrieve().bodyToMono(String.class)
+                .retryWhen(Retry.fixedDelay(3, Duration.ofMillis(100)));
+    }
+
+    private String getServerUrl() {
+        return this.discoveryClient.getInstances(serverName).get(0).getUri().toString();
+    }
+
+
     @RequestMapping("/service-instances/{applicationName}")
     public List<ServiceInstance> serviceInstancesByApplicationName(
             @PathVariable String applicationName) {
@@ -34,7 +60,7 @@ class AttendanceController {
     }
 
 
-    @PostMapping("/attendance/checkin")
+    @PostMapping("/attendance/checkinX")
     public ResponseEntity<String> checkIn(@RequestBody CheckInCreationDto checkIn, @RequestHeader Map<String, String> headers) {
         try {
             Map<String, String> map = new HashMap<>();
@@ -44,7 +70,7 @@ class AttendanceController {
             final HttpHeaders httpHeaders = new HttpHeaders();
             httpHeaders.set("Authorization", headers.get("authorization"));
             final HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
-            ResponseEntity<String> response = restTemplate.exchange("http://team5-server/api/v1//record/checkin", HttpMethod.POST, entity, String.class, map);
+            ResponseEntity<String> response = restTemplate.exchange("http://team5-server/api/v1/record/checkin", HttpMethod.POST, entity, String.class, map);
 
 //            ResponseEntity<String> response = restTemplate.exchange("http://team5-server/record/checkin", map, String.class);
 
