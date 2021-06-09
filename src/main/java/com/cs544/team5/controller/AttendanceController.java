@@ -9,10 +9,7 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
-import java.nio.charset.StandardCharsets;
-import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,15 +35,19 @@ class AttendanceController {
 
 
     @PostMapping("/attendance/checkin")
-    public ResponseEntity<String> checkIn(@RequestBody CheckInCreationDto checkIn){
-
-        try{
+    public ResponseEntity<String> checkIn(@RequestBody CheckInCreationDto checkIn, @RequestHeader Map<String, String> headers) {
+        try {
             Map<String, String> map = new HashMap<>();
             map.put("studentBarcode", "barcode");
             map.put("classSessionId", "1");
 
-            ResponseEntity<String> response= restTemplate.postForEntity("http://team5-server/record/checkin", map, String.class);
-            // check response
+            final HttpHeaders httpHeaders = new HttpHeaders();
+            httpHeaders.set("Authorization", headers.get("authorization"));
+            final HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
+            ResponseEntity<String> response = restTemplate.exchange("http://team5-server/api/v1//record/checkin", HttpMethod.POST, entity, String.class, map);
+
+//            ResponseEntity<String> response = restTemplate.exchange("http://team5-server/record/checkin", map, String.class);
+
             if (response.getStatusCode() == HttpStatus.OK) {
                 System.out.println("Checkin Successful");
             } else {
@@ -54,19 +55,20 @@ class AttendanceController {
             }
             return response;
 
-        } catch (Exception ex){
+        } catch (Exception ex) {
             ex.printStackTrace();
             return ResponseEntity.notFound().build();
         }
 
     }
+
     @GetMapping("/test/course")
-    public ResponseEntity<CourseReadDto> findCourse(){
-        try{
+    public ResponseEntity<CourseReadDto> findCourse() {
+        try {
             CourseReadDto response = restTemplate.getForObject("http://team5-server/courses/1", CourseReadDto.class);
             return ResponseEntity.ok(response);
 
-        } catch (Exception ex){
+        } catch (Exception ex) {
             ex.printStackTrace();
             return ResponseEntity.notFound().build();
         }
